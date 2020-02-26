@@ -126,6 +126,25 @@ characters_dict = {
 }
 
 
+def get_character_data(path, search_dir):
+
+    character_data = []
+
+    for file in os.listdir(path):
+        print(file)
+        if file != path:
+            image = Image.open(os.path.join(path, file))
+            baseheight = 200
+            hpercent = (baseheight / float(image.size[1]))
+            wsize = int((float(image.size[0]) * float(hpercent)))
+            image = image.resize((wsize, baseheight), Image.ANTIALIAS)
+            result = convert_and_crop_grayscale(image)
+            result = scale_down_matrix(result, 32, 32)
+            character_data.append(result)
+
+    return character_data
+
+
 def main():
     SEARCH_FOLDER = 'Img'
 
@@ -133,22 +152,23 @@ def main():
 
     for dir in [x[0] for x in os.walk(SEARCH_FOLDER)]:
         if dir != SEARCH_FOLDER:
-            name = dir.split('/')[0]
+            number = int(dir.split('/')[1][-3:])
+
+            if number > 35:
+                continue
+            characters_list.append({
+                'character': characters_dict[number],
+                'path': dir
+            })
+
+    data = []
+    labels = characters_dict.values()
+
+    for character in characters_list:
+        data.append(get_character_data(character['path'], SEARCH_FOLDER))
+
+    print('Completed!')
 
 
-
-
-
-
-image = Image.open('Img/Sample001/img001-001.png')
-baseheight = 200
-hpercent = (baseheight / float(image.size[1]))
-wsize = int((float(image.size[0]) * float(hpercent)))
-image = image.resize((wsize, baseheight), Image.ANTIALIAS)
-result = convert_and_crop_grayscale(image)
-
-result = scale_down_matrix(result, 32, 32)
-plt.imshow(result, cmap='hot', interpolation='nearest')
-plt.show()
-
-
+if __name__ == '__main__':
+    main()
