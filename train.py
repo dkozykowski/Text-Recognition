@@ -1,8 +1,61 @@
-from PIL import Image
-import numpy
+from __future__ import print_function
+
 import os
+import random
 from math import floor
-from matplotlib import pyplot as plt
+
+import numpy
+import keras
+from keras.models import Sequential
+from keras.layers import Dense, Dropout, Flatten
+from keras.layers import Conv2D, MaxPooling2D
+from keras import backend as K
+from PIL import Image
+
+
+batch_size = 10
+num_classes = 35
+epochs = 10
+
+img_rows, img_cols = 32, 32
+
+characters_dict = {
+    1: '0',
+    2: '1',
+    3: '2',
+    4: '3',
+    5: '4',
+    6: '5',
+    7: '6',
+    8: '7',
+    9: '8',
+    10: '9',
+    11: 'a',
+    12: 'b',
+    13: 'c',
+    14: 'd',
+    15: 'e',
+    16: 'f',
+    17: 'g',
+    18: 'h',
+    19: 'i',
+    20: 'j',
+    21: 'k',
+    22: 'l',
+    23: 'm',
+    24: 'n',
+    25: 'o',
+    26: 'p',
+    27: 'r',
+    28: 's',
+    29: 't',
+    30: 'u',
+    31: 'w',
+    32: 'v',
+    33: 'x',
+    34: 'y',
+    35: 'z'
+}
 
 
 def convert_and_crop_grayscale(image: Image) -> numpy.array:
@@ -83,50 +136,12 @@ def scale_down_matrix(raw: numpy.array, width:int, height: int) -> numpy.array:
             start_y = int(per_height * i)
             end_y = int(per_height * (i + 1))
 
-            result[i][j] = numpy.mean(raw[start_y:end_y, start_x:end_x])
+            result[i][j] = numpy.array([numpy.mean(raw[start_y:end_y, start_x:end_x])])
 
     return result
 
-characters_dict = {
-    1: '0',
-    2: '1',
-    3: '2',
-    4: '3',
-    5: '4',
-    6: '5',
-    7: '6',
-    8: '7',
-    9: '8',
-    10: '9',
-    11: 'a',
-    12: 'b',
-    13: 'c',
-    14: 'd',
-    15: 'e',
-    16: 'f',
-    17: 'g',
-    18: 'h',
-    19: 'i',
-    20: 'j',
-    21: 'k',
-    22: 'l',
-    23: 'm',
-    24: 'n',
-    25: 'o',
-    26: 'p',
-    27: 'r',
-    28: 's',
-    29: 't',
-    30: 'u',
-    31: 'w',
-    32: 'v',
-    33: 'x',
-    34: 'y',
-    35: 'z'
-}
 
-
-def get_character_data(path, search_dir):
+def get_character_data(path):
 
     character_data = []
 
@@ -139,10 +154,83 @@ def get_character_data(path, search_dir):
             wsize = int((float(image.size[0]) * float(hpercent)))
             image = image.resize((wsize, baseheight), Image.ANTIALIAS)
             result = convert_and_crop_grayscale(image)
-            result = scale_down_matrix(result, 32, 32)
+            result = scale_down_matrix(result, img_cols, img_rows)
             character_data.append(result)
 
     return character_data
+
+
+def shuffle_dataset(data: list, labels: list) -> list:
+    tmp_list = []
+
+    for i, row in enumerate(data):
+        for col in row:
+            tmp_list.append({'img': col, 'label': labels[i]})
+
+    random.shuffle(tmp_list)
+
+    return tmp_list
+
+
+def split_dataset(data):
+    imgs = numpy.array([x['img'] for x in data])
+    labels = numpy.array([x['label'] for x in data])
+    split_begin = int(len(data) / 4)
+
+    return (imgs[0:split_begin], labels[0:split_begin]), (imgs[split_begin:], labels[split_begin:])
+
+
+def learn(data, labels):
+    randomized = shuffle_dataset(data, labels)
+
+    (x_test, y_test), (x_train, y_train) = split_dataset(randomized)
+
+    if K.image_data_format() == 'channels_first':
+        x_train = x_train.reshape(x_train.shape[0], 1, img_rows, img_cols)
+        x_test = x_test.reshape(x_test.shape[0], 1, img_rows, img_cols)
+        input_shape = (1, img_rows, img_cols)
+    else:
+        x_train = x_train.reshape(x_train.shape[0], img_rows, img_cols, 1)
+        x_test = x_test.reshape(x_test.shape[0], img_rows, img_cols, 1)
+        input_shape = (img_rows, img_cols, 1)
+
+    x_train = x_train.astype('float32')
+    x_test = x_test.astype('float32')
+    x_train /= 255
+    x_test /= 255
+    print('x_train shape:', x_train.shape)
+    print(x_train.shape[0], 'train samples')
+    print(x_test.shape[0], 'test samples')
+
+    # convert class vectors to binary class matrices
+    y_train = keras.utils.to_categorical(y_train, num_classes)
+    y_test = keras.utils.to_categorical(y_test, num_classes)
+
+    model = Sequential()
+    model.add(Conv2D(32, kernel_size=(3, 3),
+                     activation='relu',
+                     input_shape=input_shape))
+    model.add(Conv2D(64, (3, 3), activation='relu'))
+    model.add(MaxPooling2D(pool_size=(2, 2)))
+    model.add(Dropout(0.25))
+    model.add(Flatten())
+    model.add(Dense(128, activation='relu'))
+    model.add(Dropout(0.5))
+    model.add(Dense(num_classes, activation='softmax'))
+
+    model.compile(loss=keras.losses.categorical_crossentropy,
+                  optimizer=keras.optimizers.Adadelta(),
+                  metrics=['accuracy'])
+
+    model.fit(x_train, y_train,
+              batch_size=batch_size,
+              epochs=epochs,
+              verbose=1,
+              validation_data=(x_test, y_test))
+    score = model.evaluate(x_test, y_test, verbose=0)
+    print('Test loss:', score[0])
+    print('Test accuracy:', score[1])
+    model.save('hw.h5')
 
 
 def main():
@@ -152,9 +240,9 @@ def main():
 
     for dir in [x[0] for x in os.walk(SEARCH_FOLDER)]:
         if dir != SEARCH_FOLDER:
-            number = int(dir.split('/')[1][-3:])
+            number = int(dir.split(os.path.sep)[1][-3:])
 
-            if number > 35:
+            if number > num_classes:
                 continue
             characters_list.append({
                 'character': characters_dict[number],
@@ -165,9 +253,11 @@ def main():
     labels = characters_dict.values()
 
     for character in characters_list:
-        data.append(get_character_data(character['path'], SEARCH_FOLDER))
+        data.append(get_character_data(character['path']))
 
     print('Completed!')
+
+    learn(data, labels)
 
 
 if __name__ == '__main__':
