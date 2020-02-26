@@ -4,7 +4,6 @@ import os
 import random
 import threading
 from math import floor
-from tempfile import TemporaryFile
 
 import numpy
 import keras
@@ -199,10 +198,6 @@ def get_character_data(path):
     th_5.join()
     th_6.join()
     th_7.join()
-
-    temp_file = TemporaryFile()
-
-    numpy.save(temp_file, numpy.array(tmp_global))
 
     return tmp_global
 
