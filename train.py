@@ -2,7 +2,9 @@ from __future__ import print_function
 
 import os
 import random
+import threading
 from math import floor
+from tempfile import TemporaryFile
 
 import numpy
 import keras
@@ -13,7 +15,8 @@ from keras import backend as K
 from PIL import Image
 
 
-batch_size = 10
+tmp_global = []
+batch_size = 8
 num_classes = 35
 epochs = 10
 
@@ -141,23 +144,67 @@ def scale_down_matrix(raw: numpy.array, width:int, height: int) -> numpy.array:
     return result
 
 
+def transform_images(*paths):
+    global tmp_global
+    character_data = []
+    for path in paths:
+        print(path)
+        image = Image.open(path)
+        baseheight = 200
+        hpercent = (baseheight / float(image.size[1]))
+        wsize = int((float(image.size[0]) * float(hpercent)))
+        image = image.resize((wsize, baseheight), Image.ANTIALIAS)
+        result = convert_and_crop_grayscale(image)
+        result = scale_down_matrix(result, img_cols, img_rows)
+        character_data.append(result)
+
+    tmp_global += character_data
+
+
 def get_character_data(path):
 
-    character_data = []
+    que = []
+    global tmp_global
+    tmp_global = []
 
     for file in os.listdir(path):
-        print(file)
         if file != path:
-            image = Image.open(os.path.join(path, file))
-            baseheight = 200
-            hpercent = (baseheight / float(image.size[1]))
-            wsize = int((float(image.size[0]) * float(hpercent)))
-            image = image.resize((wsize, baseheight), Image.ANTIALIAS)
-            result = convert_and_crop_grayscale(image)
-            result = scale_down_matrix(result, img_cols, img_rows)
-            character_data.append(result)
+            que.append(os.path.join(path, file))
 
-    return character_data
+    divider = int(len(que) / 8)
+
+    th_1 = threading.Thread(target=transform_images, args=(que[0:divider]))
+    th_2 = threading.Thread(target=transform_images, args=(que[divider:divider*2]))
+    th_3 = threading.Thread(target=transform_images, args=(que[divider*2:divider*3]))
+    th_4 = threading.Thread(target=transform_images, args=(que[divider*3:divider*4]))
+    th_5 = threading.Thread(target=transform_images, args=(que[divider*4:divider*5]))
+    th_6 = threading.Thread(target=transform_images, args=(que[divider*5:divider * 6]))
+    th_7 = threading.Thread(target=transform_images, args=(que[divider * 6:divider * 7]))
+    th_8 = threading.Thread(target=transform_images, args=(que[divider * 7:]))
+
+    th_1.start()
+    th_2.start()
+    th_3.start()
+    th_4.start()
+    th_5.start()
+    th_6.start()
+    th_7.start()
+    th_8.start()
+
+    th_1.join()
+    th_4.join()
+    th_2.join()
+    th_3.join()
+    th_8.join()
+    th_5.join()
+    th_6.join()
+    th_7.join()
+
+    temp_file = TemporaryFile()
+
+    numpy.save(temp_file, numpy.array(tmp_global))
+
+    return tmp_global
 
 
 def shuffle_dataset(data: list, labels: list) -> list:
@@ -250,7 +297,7 @@ def main():
             })
 
     data = []
-    labels = characters_dict.values()
+    labels = [x - 1 for x in characters_dict.keys()]
 
     for character in characters_list:
         data.append(get_character_data(character['path']))
@@ -258,6 +305,20 @@ def main():
     print('Completed!')
 
     learn(data, labels)
+
+
+def test():
+    image = Image.open('Img/Sample002/img002-001.png')
+    baseheight = 200
+    hpercent = (baseheight / float(image.size[1]))
+    wsize = int((float(image.size[0]) * float(hpercent)))
+    image = image.resize((wsize, baseheight), Image.ANTIALIAS)
+    result = convert_and_crop_grayscale(image)
+    result = scale_down_matrix(result, img_cols, img_rows)
+
+    model = keras.models.load_model('hw.h5')
+    prediction = model.predict(numpy.array([[result]]).reshape((1, 32, 32, 1)))
+    print(prediction)
 
 
 if __name__ == '__main__':
