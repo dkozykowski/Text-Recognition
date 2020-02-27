@@ -1,0 +1,69 @@
+<html>
+<script type="text/javascript">
+    let canvas, ctx, flag;
+
+    function init() {
+        canvas = document.getElementById('can');
+        ctx = canvas.getContext("2d");
+        w = canvas.width;
+        h = canvas.height;
+        flag = false;
+
+        canvas.addEventListener("mousemove", function (e) {
+            findxy('move', e)
+        }, false);
+        canvas.addEventListener("mousedown", function (e) {
+            findxy('down', e)
+        }, false);
+        canvas.addEventListener("mouseup", function (e) {
+            findxy('up', e)
+        }, false);
+        canvas.addEventListener("mouseout", function (e) {
+            findxy('out', e)
+        }, false);
+    }
+
+    function sendImage() {
+        let canvasData = canvas.toDataURL("image/png");
+        let xmlHttpReq = false;
+
+        if (window.XMLHttpRequest) {
+            ajax = new XMLHttpRequest();
+        }
+        else if (window.ActiveXObject) {
+            ajax = new ActiveXObject("Microsoft.XMLHTTP");
+        }
+
+        ajax.open("POST", "http://localhost:8000/api/recognize", false);
+        ajax.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+        ajax.onreadystatechange = function() {
+            document.getElementById('target').innerText=ajax.responseText;
+        };
+        ajax.send("imgData=" + canvasData);
+    }
+
+    function findxy(res, e) {
+        let context = ctx;
+        const centerX = e.clientX - canvas.offsetLeft;
+        const centerY = e.clientY - canvas.offsetTop;
+        const radius = 10;
+
+        if(res === 'down') flag = true;
+        else if(res === 'up' || res === 'out') flag = false;
+
+        if(flag) {
+            context.beginPath();
+            context.arc(centerX, centerY, radius, 0, 2 * Math.PI, false);
+            context.fillStyle = 'black';
+            context.fill();
+            context.lineWidth = 5;
+            context.strokeStyle = 'black';
+            context.stroke();
+        }
+    }
+</script>
+<body onload="init()">
+<h3><button onclick="sendImage()">Test</button>    It looks like <span id="target">...</span></h3>
+<canvas id="can" width="400" height="400" style="position:absolute;top:10%;left:10%;border:2px solid;"></canvas>
+</body>
+</html>
