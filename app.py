@@ -9,7 +9,7 @@ from PIL import Image, ImageFile
 import base64
 from io import BytesIO
 
-from flask import Flask, request, redirect
+from flask import Flask, request, send_file
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 from tensorflow.python.framework import ops
@@ -27,17 +27,22 @@ reco = Recognizer('hw.h5')
 
 @app.route('/api/recognize', methods=['POST'])
 def get_image():
-    image_data = re.sub('^data:image/.+;base64,', '', request.form['imgData'])
+    image_data = re.sub('^data:image/.+;base64,', '', request.get_json()['data'])
 
     im = Image.open(BytesIO(base64.b64decode(image_data)))
     im.load()
     background = Image.new("RGB", im.size, (255, 255, 255))
     background.paste(im, mask=im.split()[3])
-
+    background.save('test.jpg')
     reco.load_image(background)
     last_digit = reco.predict()
 
     return last_digit
+
+
+@app.route('/', methods=['GET'])
+def index():
+    return send_file("index.html")
 
 
 if __name__ == "__main__":

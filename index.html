@@ -16,10 +16,12 @@
             findxy('down', e)
         }, false);
         canvas.addEventListener("mouseup", function (e) {
-            findxy('up', e)
+            findxy('up', e);
+            sendImage();
         }, false);
         canvas.addEventListener("mouseout", function (e) {
-            findxy('out', e)
+            findxy('out', e);
+            sendImage();
         }, false);
     }
 
@@ -35,18 +37,23 @@
         }
 
         ajax.open("POST", "http://localhost:8000/api/recognize", false);
-        ajax.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+        ajax.setRequestHeader("Content-Type", "application/json");
         ajax.onreadystatechange = function() {
             document.getElementById('target').innerText=ajax.responseText;
         };
-        ajax.send("imgData=" + canvasData);
+        ajax.send(JSON.stringify({data: canvasData}));
+    }
+
+    function clear() {
+        console.log('clear');
+        ctx.clearRect(0, 0, 400, 400);
     }
 
     function findxy(res, e) {
         let context = ctx;
         const centerX = e.clientX - canvas.offsetLeft;
         const centerY = e.clientY - canvas.offsetTop;
-        const radius = 10;
+        const radius = 8;
 
         if(res === 'down') flag = true;
         else if(res === 'up' || res === 'out') flag = false;
@@ -63,7 +70,7 @@
     }
 </script>
 <body onload="init()">
-<h3><button onclick="sendImage()">Test</button>    It looks like <span id="target">...</span></h3>
+<h3><button onclick="sendImage()">Test</button> <button onclick="clear()">Clear</button>    It looks like <span id="target">...</span></h3>
 <canvas id="can" width="400" height="400" style="position:absolute;top:10%;left:10%;border:2px solid;"></canvas>
 </body>
 </html>
