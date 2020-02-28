@@ -1,174 +1,61 @@
-from PIL import Image
 import numpy
-import os
-from math import floor
-from matplotlib import pyplot as plt
+import keras
+from keras.models import Sequential
+from keras.layers import Dense, Dropout, Flatten
+from keras.layers import Conv2D, MaxPooling2D
+from keras import backend as K
+from PIL import Image
+from keras.datasets import mnist
 
+#reading data from keras mnist:
+#X_train - picture of handwritten digit used for training
+#Y_train - name of that digit
+#X_test - picture of handwritten digit used for testing effects of learning
+#Y_test - name of that digit
+(X_train, y_train), (X_test, y_test) = mnist.load_data()
 
-def convert_and_crop_grayscale(image: Image) -> numpy.array:
-    tmp = numpy.array(image)
-    width, height = image.size
+#single mnist data format
+height = 28
+width = 28
+input_shape = (height, width, 1)
 
-    # find "bounding box"
-    TRESHHOLD = 100
+#convert given image to straight vector 
+X_train = X_train.reshape(X_train.shape[0], height, width, 1)
+X_test = X_test.reshape(X_test.shape[0], height, width, 1)
+X_train = X_train.astype('float32')
+X_test = X_test.astype('float32')
+X_train /= 255
+X_test /= 255
 
-    top_limit = 0
-    bottom_limit = height
-    left_limit = 0
-    right_limit = width
+#one-hot encoding
+typesNumber = 10
+y_train = keras.utils.to_categorical(y_train, typesNumber)
+y_test = keras.utils.to_categorical(y_test, typesNumber)
 
-    grayscale_array = numpy.array([[pixel[0] / 3 + pixel[1] / 3 + pixel[2] / 3 for pixel in row] for row in tmp])
+#adding hidden layers to the model
+model = Sequential()
+model.add(Conv2D(32, kernel_size=(3, 3), activation='relu', input_shape=input_shape))
+model.add(Conv2D(64, (3, 3), activation='relu'))
+model.add(MaxPooling2D(pool_size=(2, 2)))
+model.add(Dropout(0.5))
+model.add(Flatten())
+model.add(Dense(128, activation='relu'))
+model.add(Dropout(0.5))
+model.add(Dense(typesNumber, activation='softmax'))
 
-    for ind, row in enumerate(grayscale_array):
-        if top_limit == 0:
-            if numpy.any(row < TRESHHOLD):
-                top_limit = ind
-        else:
-            if numpy.all(row > TRESHHOLD):
-                bottom_limit = ind
-                break
+#compiling the sequential model
+model.compile(loss=keras.losses.categorical_crossentropy,
+              optimizer=keras.optimizers.Adadelta(),
+              metrics=['accuracy'])
 
-    for ind, row in enumerate(numpy.transpose(grayscale_array)):
-        if left_limit == 0:
-            if numpy.any(row < TRESHHOLD):
-                left_limit = ind
-        else:
-            if numpy.all(row > TRESHHOLD):
-                right_limit = ind
-                break
+#training the model
+model.fit(X_train,
+          y_train,
+          batch_size=128,
+          epochs=1,
+          verbose=1,
+          validation_data=(X_test, y_test))
 
-    fixed_width = right_limit - left_limit
-    fixed_height = bottom_limit - top_limit
-
-    if fixed_height > fixed_width:
-        diff = fixed_height - fixed_width
-        to_be_added_right = int(floor(diff / 2))
-        to_be_added_left = int(floor((diff + 1) / 2))
-
-        to_few_pixels_left = min(0, left_limit - to_be_added_left)
-        to_few_pixels_right = min(0, width - right_limit - to_be_added_right)
-
-        to_be_added_left += to_few_pixels_left
-        to_be_added_right += to_few_pixels_right
-
-        left_limit -= to_be_added_left
-        right_limit += to_be_added_right
-    elif fixed_height < fixed_width:
-        diff = fixed_width - fixed_height
-        to_be_added_top = int(floor(diff / 2))
-        to_be_added_bottom = int(floor((diff + 1) / 2))
-
-        to_few_pixels_top = min(0, top_limit - to_be_added_top)
-        to_few_pixels_bottom = min(0, height - bottom_limit - to_be_added_bottom)
-
-        to_be_added_top += to_few_pixels_top
-        to_be_added_bottom += to_few_pixels_bottom
-
-        top_limit -= to_be_added_top
-        bottom_limit += to_be_added_bottom
-
-    return grayscale_array[top_limit:bottom_limit, left_limit:right_limit]
-
-
-def scale_down_matrix(raw: numpy.array, width:int, height: int) -> numpy.array:
-    per_width = raw.shape[1] / width
-    per_height = raw.shape[0] / height
-
-    result = numpy.zeros((height, width))
-
-    for i in range(height):
-        for j in range(width):
-            start_x = int(per_width * j)
-            end_x = int(per_width * (j + 1))
-            start_y = int(per_height * i)
-            end_y = int(per_height * (i + 1))
-
-            result[i][j] = numpy.mean(raw[start_y:end_y, start_x:end_x])
-
-    return result
-
-characters_dict = {
-    1: '0',
-    2: '1',
-    3: '2',
-    4: '3',
-    5: '4',
-    6: '5',
-    7: '6',
-    8: '7',
-    9: '8',
-    10: '9',
-    11: 'a',
-    12: 'b',
-    13: 'c',
-    14: 'd',
-    15: 'e',
-    16: 'f',
-    17: 'g',
-    18: 'h',
-    19: 'i',
-    20: 'j',
-    21: 'k',
-    22: 'l',
-    23: 'm',
-    24: 'n',
-    25: 'o',
-    26: 'p',
-    27: 'r',
-    28: 's',
-    29: 't',
-    30: 'u',
-    31: 'w',
-    32: 'v',
-    33: 'x',
-    34: 'y',
-    35: 'z'
-}
-
-
-def get_character_data(path, search_dir):
-
-    character_data = []
-
-    for file in os.listdir(path):
-        print(file)
-        if file != path:
-            image = Image.open(os.path.join(path, file))
-            baseheight = 200
-            hpercent = (baseheight / float(image.size[1]))
-            wsize = int((float(image.size[0]) * float(hpercent)))
-            image = image.resize((wsize, baseheight), Image.ANTIALIAS)
-            result = convert_and_crop_grayscale(image)
-            result = scale_down_matrix(result, 32, 32)
-            character_data.append(result)
-
-    return character_data
-
-
-def main():
-    SEARCH_FOLDER = 'Img'
-
-    characters_list = []
-
-    for dir in [x[0] for x in os.walk(SEARCH_FOLDER)]:
-        if dir != SEARCH_FOLDER:
-            number = int(dir.split('/')[1][-3:])
-
-            if number > 35:
-                continue
-            characters_list.append({
-                'character': characters_dict[number],
-                'path': dir
-            })
-
-    data = []
-    labels = characters_dict.values()
-
-    for character in characters_list:
-        data.append(get_character_data(character['path'], SEARCH_FOLDER))
-
-    print('Completed!')
-
-
-if __name__ == '__main__':
-    main()
+#showing results
+result = model.evaluate(X_test, y_test, verbose=0)
+print('Accuracy:', int(result[1] * 100) , "%")
