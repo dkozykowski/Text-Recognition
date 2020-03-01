@@ -33,11 +33,10 @@ def get_image():
     im.load()
     background = Image.new("RGB", im.size, (255, 255, 255))
     background.paste(im, mask=im.split()[3])
-    background.save('test.jpg')
     reco.load_image(background)
-    last_digit = reco.predict()
+    last_digit, index = reco.predict()
 
-    return last_digit
+    return last_digit + ' - ' + str(index)
 
 
 @app.route('/', methods=['GET'])

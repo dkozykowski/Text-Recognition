@@ -29,9 +29,15 @@ class Recognizer:
         pro = Preprocessing.single()
         self.__data = pro.prepare_single(img)
 
+        im = Image.fromarray(numpy.uint8(self.__data), 'L')
+        im.save('last.jpg')
+
     def predict(self):
-        prediction = self.__model.predict(numpy.array([[self.__data]]).reshape((1, 32, 32, 1)))[0]
+        prediction = self.__model.predict(numpy.array([[self.__data]]).reshape((1, 40, 40, 1)))[0]
 
         index = numpy.argmax(prediction)
 
-        return self.__encoding_dict[str(index)]
+        try:
+            return self.__encoding_dict[str(index)], index
+        except:
+            return '-', index

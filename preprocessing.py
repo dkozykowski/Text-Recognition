@@ -8,7 +8,7 @@ class Preprocessing:
 
     def __init__(self, batch: list, size=(32, 32), height=200):
         self.__data = batch
-        self.__img_size = (32, 32)
+        self.__img_size = (40, 40)
         self.__image_pre_height = 200
 
     @staticmethod
@@ -30,10 +30,12 @@ class Preprocessing:
             if top_limit == 0:
                 if numpy.any(row < TRESHHOLD):
                     top_limit = ind
-            else:
-                if numpy.all(row > TRESHHOLD):
-                    bottom_limit = ind
                     break
+
+        for ind in range(grayscale_array.shape[0] - 1, 0, -1):
+            if numpy.any(grayscale_array[ind] < TRESHHOLD):
+                bottom_limit = ind
+                break
 
         for ind, row in enumerate(numpy.transpose(grayscale_array)):
             if left_limit == 0:
@@ -90,7 +92,7 @@ class Preprocessing:
                 start_y = int(per_height * i)
                 end_y = int(per_height * (i + 1))
 
-                result[i][j] = numpy.array([numpy.mean(raw[start_y:end_y, start_x:end_x])])
+                result[i][j] = numpy.mean(raw[start_y:end_y, start_x:end_x])
 
         return result
 
@@ -112,7 +114,8 @@ class Preprocessing:
     def prepare_batch(self) -> numpy.array:
         result = []
 
-        for image in self.__data:
+        for i, image in enumerate(self.__data):
+            print(i)
             result.append(self.__prepare_image(image))
 
         return numpy.array(result)
