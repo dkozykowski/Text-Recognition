@@ -15,9 +15,9 @@ from PIL import Image
 
 from preprocessing import Preprocessing
 
-batch_size = 32
+batch_size = 8
 num_classes = 62
-epochs = 10
+epochs = 8
 
 DEST_DIR = 'After'
 
@@ -110,14 +110,13 @@ def learn():
     model.add(Conv2D(32, (4, 4)))
     model.add(BatchNormalization(axis=-1))
     model.add(Activation('relu'))
-    model.add(MaxPooling2D(pool_size=(2, 2)))
 
-    model.add(Conv2D(64, (3, 3)))
-    model.add(BatchNormalization(axis=-1))
-    model.add(Activation('relu'))
-    model.add(Conv2D(64, (3, 3)))
-    model.add(BatchNormalization(axis=-1))
-    model.add(Activation('relu'))
+    # model.add(Conv2D(32, (3, 3)))
+    # model.add(BatchNormalization(axis=-1))
+    # model.add(Activation('sigmoid'))
+    # model.add(Conv2D(32, (3, 3)))
+    # model.add(BatchNormalization(axis=-1))
+    # model.add(Activation('relu'))
     model.add(MaxPooling2D(pool_size=(2, 2)))
 
     model.add(Flatten())
@@ -169,8 +168,6 @@ def prepare():
 
     print('Completed!')
 
-    # learn()
-
 
 def test():
     characters_list = []
@@ -205,7 +202,7 @@ def test():
     result = dict()
 
     for i, d in enumerate(data):
-        prediction = model.predict(numpy.array([[d]]).reshape((1, 32, 32, 1)))
+        prediction = model.predict(numpy.array([[d]]).reshape((1, 40, 40, 1)))
         result[helper[i]] = numpy.argmax(prediction)
 
     print(result)

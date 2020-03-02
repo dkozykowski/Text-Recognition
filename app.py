@@ -1,18 +1,11 @@
-import os
 import re
 
-import tensorflow as tf
-import keras
-from tensorflow.keras.models import load_model
-import numpy as np
 from PIL import Image, ImageFile
 import base64
 from io import BytesIO
 
 from flask import Flask, request, send_file
 from flask_cors import CORS
-from werkzeug.utils import secure_filename
-from tensorflow.python.framework import ops
 
 from recognizer import Recognizer
 
